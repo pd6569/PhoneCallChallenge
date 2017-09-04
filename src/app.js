@@ -85,8 +85,16 @@ class PhoneCallApp {
             if (heading !== "timestamp"){
                 let total = 0;
                 for (let row of activeData){
-                    let val = parseInt(row[heading]);
+                    let val;
+                    if (heading === "avg. num. agents talking ") {
+                        val = parseFloat(row[heading]);
+                    } else {
+                        val = parseInt(row[heading]);
+                    }
                     total += val;
+                }
+                if (heading.includes("avg")){
+                    total = total / numActiveTimepoints
                 }
                 this.$level1.append(`<p><strong>Total ${heading}:</strong> ${total}`);
             }
