@@ -8,15 +8,10 @@ class PhoneCallApp {
 
     constructor() {
         console.log("PhoneCallAppCreated");
-        this.loadData();
 
-        // Level 1 group data
-        this.level1RawGroupData = [];
-        this.level1FilteredGroupData = {};
-
-        // Level 1 agent data
-        this.level1RawAgentData = [];
-        this.level1FilteredAgentData = {};
+        // Data
+        this.groupData = [];
+        this.agentData = [];
 
         // Headers
         this.groupDataHeaders = [];
@@ -24,84 +19,66 @@ class PhoneCallApp {
 
         // Get DOM elements
         this.$level1 = $('#level1');
+        this.$fileInput = $('#fileInput');
+
+        // Set Listeners;
+        this.$fileInput.on('change', () => this.readFiles(event));
     }
 
-    loadData(){
-        let _this = this;
-
-        $.ajax({
-            'url': 'data/20170418_000000_agent_statistics.csv',
-            'success': function(data) {
-                _this.level1RawAgentData = _this._convertCSVtoJSON(data, "agent");
-                _this.initLevel1Analysis("agent");
-            }
-        });
-
-        $.ajax({
-            'url': 'data/20170418_000000_group_statistics.csv',
-            'success': function(data) {
-                _this.level1RawGroupData = _this._convertCSVtoJSON(data, "group");
-                _this.initLevel1Analysis("group");
-            }
-        })
-    }
-
-    initLevel1Analysis(dataType){
-        if (dataType === "group"){
-            this.generateActiveCallData(); // data contains empty data for out of hours (e.g. between midnight - 8:00, and after 18:30).
-            this.analyseActiveCallData();
+    readFiles(event) {
+        let files = event.target.files;
+        console.log("readFiles", files);
+        if (!files) {
+            return;
         }
 
-        if (dataType === "agent"){
-
-        }
-    }
-
-    generateActiveCallData(){
-        console.log("generateActiveCallData");
-        this.level1FilteredGroupData.activeCallData = [];
-        for (let row of this.level1RawGroupData){
-            if (row["avg. wait time "] !== "00:00:00") {
-                this.level1FilteredGroupData.activeCallData.push(row);
-            }
-        }
-
-        console.log("Active call data: ", this.level1FilteredGroupData.activeCallData)
-    }
-
-    analyseActiveCallData(){
-
-        let activeData = this.level1FilteredGroupData.activeCallData;
-
-        // Get first and last call times
-        let numActiveTimepoints = activeData.length;
-        this.level1FilteredGroupData.firstCallTimestamp = activeData[0]["timestamp"];
-        this.level1FilteredGroupData.lastCallTimestamp = activeData[numActiveTimepoints - 1]["timestamp"];
-        this.$level1.append(`<p><strong>First call data obtained at:</strong> ${this.level1FilteredGroupData.firstCallTimestamp}`);
-        this.$level1.append(`<p><strong>Last call data obtained at:</strong> ${this.level1FilteredGroupData.lastCallTimestamp}`);
-
-        // Get totals
-        for (let heading of this.groupDataHeaders){
-            if (heading !== "timestamp"){
-                let total = 0;
-                for (let row of activeData){
-                    let val;
-                    if (heading === "avg. num. agents talking ") {
-                        val = parseFloat(row[heading]);
-                    } else {
-                        val = parseInt(row[heading]);
+        for (let file of files){
+            let fileType;
+            let _this = this;
+            if ((/\.(csv)$/i).test(file.name)){
+                if (file.name.includes("group")) {
+                    fileType = "group";
+                } else if (file.name.includes("agent")) {
+                    fileType = "agent";
+                } else {
+                    console.log("Error loading file");
+                    return;
+                }
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    let contents = e.target.result;
+                    if (fileType === "group") _this.addGroupData(contents);
+                    if (fileType === "agent") {
+                        let dateKey = file.name.substring(0,8);
+                        _this.addAgentData(contents, dateKey);
                     }
-                    total += val;
-                }
-                if (heading.includes("avg")){
-                    total = total / numActiveTimepoints
-                }
-                this.$level1.append(`<p><strong>Total ${heading}:</strong> ${total}`);
+                };
+                reader.readAsText(file);
+            } else {
+                alert("You tried to load an unsupported file type");
+                this.$fileInput.val("");
             }
+
         }
+
     }
+
+    addGroupData(data){
+        console.log("addGroupData", data);
+        this.convertCSVtoJSON(data, "group");
+        console.log("group data: ", this.groupData)
+    }
+
+    addAgentData(data, dateKey){
+        console.log("addAgentData", data);
+        this.convertCSVtoJSON(data, "agent", dateKey);
+        console.log("agent data: ", this.agentData)
+    }
+
     
-    _convertCSVtoJSON(csv, dataType) {
+    convertCSVtoJSON(csv, dataType, dateKey) {
+
+        let _this = this;
 
         let lines = csv.split("\n"); // creates an array of lines - first line is headings
 
@@ -133,19 +110,34 @@ class PhoneCallApp {
 
             // Push to array if not empty object
             if (Object.keys(obj).length > 0){
+
+                if (dateKey) obj.dateKey = dateKey;
+
                 // Store each row object in result array
-                result.push(obj);
+                if (dataType === "group") {
+                    if (validateRow(obj, dataType)) this.groupData.push(obj);
+                }
+                if (dataType === "agent") {
+                    if (validateRow(obj, dataType)) this.agentData.push(obj);
+                }
             }
 
         }
 
-        //return array of objects representing CSV data rows
-        return result;
+        function validateRow(rowData, dataType){
+            if (dataType === "group"){
+                if (Object.keys(rowData).length < _this.groupDataHeaders.length) return false;
+                return true;
+            }
+
+            if (dataType === "agent"){
+                if (Object.keys(rowData).length < _this.agentDataHeaders.length) return false;
+                return true;
+            }
+        }
     }
 
 }
-
-
 
 window.addEventListener('load', () => {
     new PhoneCallApp();
