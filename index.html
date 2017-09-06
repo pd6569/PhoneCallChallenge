@@ -3,14 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <title>Phone Call Challenge</title>
+    <style>
+        #fileInput {
+            width: 100%;
+        }
+
+        #analysisConsole {
+            float: left;
+            width: 50%;
+        }
+
+        #datesContainer {
+
+        }
+
+        .analyse-all {
+            text-transform: uppercase;
+            color: blue;
+        }
+
+        .analyse-date {
+            text-decoration: underline;
+            color: blue;
+        }
+
+        .link:hover {
+            cursor: pointer;
+            color: deeppink;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .scroll-pane {
+            height: 300px;
+            overflow: scroll;
+        }
+
+    </style>
 </head>
 <body>
     <h1>Phone Call Challenge</h1>
     <input id="fileInput" type="file" multiple/>
-    <div id="analysisConsole">
+    <div id="analysisConsole" class="scroll-pane">
         <h3>Analysis Console</h3>
         <div class="analysisOutput"></div>
     </div>
+    <div>
+        <div id="datesContainer" class="scroll-pane hidden">
+
+        </div>
+    </div>
+
 </body>
 <script src="dist/bundle.js"></script>
 </html>

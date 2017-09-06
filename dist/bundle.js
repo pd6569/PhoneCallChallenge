@@ -90,25 +90,24 @@ class PhoneCallApp {
         // Get DOM elements
         this.$fileInput = $('#fileInput');
         this.$analysisOutput = $('.analysisOutput');
+        this.$datesContainer = $('#datesContainer');
 
         // Set Listeners;
         this.$fileInput.on('change', () => this.readFiles(event));
     }
 
     readFiles(event) {
-        this.resetData();
+        this.resetAppData();
         this.updateAnalysisConsole("Loading files data...");
         let _this = this;
         let files = event.target.files;
         let numFiles = files.length;
         let i = 0;
-        console.log("readFiles", files);
         if (!files) {
             return;
         }
 
         for (let file of files) {
-            i++;
             let fileType;
             let _this = this;
             if (/\.(csv)$/i.test(file.name)) {
@@ -122,18 +121,20 @@ class PhoneCallApp {
                 }
                 let reader = new FileReader();
                 reader.onload = function (e) {
+                    i++;
                     let contents = e.target.result;
                     if (fileType === "group") {
                         _this.convertCSVtoJSON(contents, "group");
-                        console.log("Group data: ", _this.groupData);
                     }
                     if (fileType === "agent") {
                         let dateKey = file.name.substring(0, 8);
                         let dateStr = dateKey.slice(0, 4) + '-' + dateKey.slice(4, 6) + '-' + dateKey.slice(6);
                         _this.convertCSVtoJSON(contents, "agent", dateStr);
-                        console.log("Agent data: ", _this.agentData);
                     }
-                    if (i === numFiles) _this.updateAnalysisConsole("Files data loaded.");
+                    if (i === numFiles) {
+                        _this.updateAnalysisConsole(`Files data loaded. ${numFiles} files.`);
+                        _this.analyseData();
+                    }
                 };
                 reader.readAsText(file);
             } else {
@@ -141,6 +142,45 @@ class PhoneCallApp {
                 this.$fileInput.val("");
                 this.updateAnalysisConsole("Failed to load file data");
             }
+        }
+    }
+
+    analyseData() {
+        this.calcDateRange();
+        this.updateAnalysisConsole("Num rows of data: " + this.calcNumRows());
+    }
+
+    calcDateRange() {
+        let dates = {};
+        let dateFrom;
+        let dateTo;
+        let data;
+        this.updateAnalysisConsole("Calculating date range...");
+        this.groupData.length ? data = this.groupData : data = this.agentData;
+
+        for (let row of data) {
+            let dateObj = row.timestamp;
+            dates[this.formatDate(dateObj)] = true;
+            if (!dateFrom) dateFrom = dateObj;
+            if (!dateTo) dateTo = dateObj;
+            if (dateObj < dateFrom) dateFrom = dateObj;
+            if (dateObj > dateTo) dateTo = dateObj;
+        }
+
+        this.addDates(dates);
+
+        this.updateAnalysisConsole("Date from: " + this.formatDate(dateFrom, true) + " to: " + this.formatDate(dateTo, true));
+    }
+
+    calcNumRows() {
+        return this.groupData.length + this.agentData.length;
+    }
+
+    addDates(dates) {
+        this.$datesContainer.removeClass('hidden');
+        this.$datesContainer.append(`<div class="analyse-all link">Analayse all</div>`);
+        for (let date in dates) {
+            this.$datesContainer.append(`<div data-id="${Date.parse(date)}">${date} | <span class="analyse-date link">analyse</span></div>`);
         }
     }
 
@@ -170,7 +210,7 @@ class PhoneCallApp {
 
             if (dateKey) {
                 let dateObj = new Date(Date.parse(dateKey));
-                if (dateObj) obj.dateKey = dateObj;
+                if (dateObj) obj.timestamp = dateObj;
             }
 
             for (let j = 0; j < headers.length; j++) {
@@ -212,12 +252,37 @@ class PhoneCallApp {
     }
 
     updateAnalysisConsole(text) {
-        this.$analysisOutput.text(text);
+        this.$analysisOutput.append(`<div>${text}</div>`);
     }
 
-    resetData() {
+    resetAppData() {
+        this.$analysisOutput.empty();
+        this.$datesContainer.empty();
         this.groupData = [];
         this.agentData = [];
+    }
+
+    formatDate(date, includeTime) {
+
+        let dateFormat;
+
+        let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        let day = "" + date.getDate();
+        if (day.length == 1) day = '0' + day;
+        let monthIndex = date.getMonth();
+        let year = date.getFullYear();
+        let hours = "" + date.getHours();
+        let minutes = "" + date.getMinutes();
+        if (hours.length == 1) hours = '0' + hours;
+        if (minutes.length == 1) minutes = '0' + minutes;
+        let time = hours + ':' + minutes;
+
+        if (includeTime) {
+            return time + ' ' + day + ' ' + monthNames[monthIndex] + ' ' + year;
+        }
+
+        return day + '-' + monthNames[monthIndex] + '-' + year;
     }
 
 }
