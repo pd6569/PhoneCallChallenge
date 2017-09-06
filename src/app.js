@@ -18,21 +18,27 @@ class PhoneCallApp {
         this.agentDataHeaders = [];
 
         // Get DOM elements
-        this.$level1 = $('#level1');
         this.$fileInput = $('#fileInput');
+        this.$analysisOutput = $('.analysisOutput');
 
         // Set Listeners;
         this.$fileInput.on('change', () => this.readFiles(event));
     }
 
     readFiles(event) {
+        this.resetData();
+        this.updateAnalysisConsole("Loading files data...");
+        let _this = this;
         let files = event.target.files;
+        let numFiles = files.length;
+        let i = 0;
         console.log("readFiles", files);
         if (!files) {
             return;
         }
 
         for (let file of files){
+            i++;
             let fileType;
             let _this = this;
             if ((/\.(csv)$/i).test(file.name)){
@@ -47,34 +53,28 @@ class PhoneCallApp {
                 let reader = new FileReader();
                 reader.onload = function(e) {
                     let contents = e.target.result;
-                    if (fileType === "group") _this.addGroupData(contents);
+                    if (fileType === "group") {
+                        _this.convertCSVtoJSON(contents, "group");
+                        console.log("Group data: ", _this.groupData);
+                    }
                     if (fileType === "agent") {
                         let dateKey = file.name.substring(0,8);
-                        _this.addAgentData(contents, dateKey);
+                        let dateStr = dateKey.slice(0,4) + '-' + dateKey.slice(4,6) + '-' + dateKey.slice(6);
+                        _this.convertCSVtoJSON(contents, "agent", dateStr);
+                        console.log("Agent data: ", _this.agentData);
                     }
+                    if (i === numFiles) _this.updateAnalysisConsole("Files data loaded.");
                 };
                 reader.readAsText(file);
             } else {
                 alert("You tried to load an unsupported file type");
                 this.$fileInput.val("");
+                this.updateAnalysisConsole("Failed to load file data");
             }
 
         }
 
     }
-
-    addGroupData(data){
-        console.log("addGroupData", data);
-        this.convertCSVtoJSON(data, "group");
-        console.log("group data: ", this.groupData)
-    }
-
-    addAgentData(data, dateKey){
-        console.log("addAgentData", data);
-        this.convertCSVtoJSON(data, "agent", dateKey);
-        console.log("agent data: ", this.agentData)
-    }
-
     
     convertCSVtoJSON(csv, dataType, dateKey) {
 
@@ -101,17 +101,25 @@ class PhoneCallApp {
             let obj = {}; // Object to store row data
             let currentline = lines[i].split(","); // separate each cell from row and store in array
 
+            if (dateKey) {
+                let dateObj = new Date(Date.parse(dateKey));
+                if (dateObj) obj.dateKey = dateObj;
+            }
+
             for(let j = 0; j  < headers.length; j++){
 
                 if (currentline[j]){
                     obj[headers[j]] = currentline[j]; // match heading with cell data and write into object
+                    if (headers[j] === "timestamp") {
+                        let dateStr = currentline[j];
+                        let dateObj = new Date(Date.parse(dateStr));
+                        if (dateObj) obj[headers[j]] = dateObj
+                    }
                 }
             }
 
             // Push to array if not empty object
             if (Object.keys(obj).length > 0){
-
-                if (dateKey) obj.dateKey = dateKey;
 
                 // Store each row object in result array
                 if (dataType === "group") {
@@ -136,6 +144,16 @@ class PhoneCallApp {
             }
         }
     }
+
+    updateAnalysisConsole(text){
+        this.$analysisOutput.text(text);
+    }
+
+    resetData(){
+        this.groupData = [];
+        this.agentData = [];
+    }
+
 
 }
 
