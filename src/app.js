@@ -4,6 +4,8 @@
 
 'use strict';
 
+import DataAnalysis from './DataAnalysis'
+
 class PhoneCallApp {
 
     constructor() {
@@ -21,9 +23,11 @@ class PhoneCallApp {
         this.$fileInput = $('#fileInput');
         this.$analysisOutput = $('.analysisOutput');
         this.$datesContainer = $('#datesContainer');
+        this.$analysisDisplay = $('#analysisDisplay');
 
         // Set Listeners;
         this.$fileInput.on('change', () => this.readFiles(event));
+        this.$datesContainer.on('click', '.analyse-date', (event) => this.analyseSingleDate($(event.currentTarget).attr('data-id')));
     }
 
     readFiles(event) {
@@ -63,7 +67,8 @@ class PhoneCallApp {
                     }
                     if (i === numFiles) {
                         _this.updateAnalysisConsole(`Files data loaded. ${numFiles} files.`);
-                        _this.analyseData();
+                        _this.calcDateRange();
+                        _this.updateAnalysisConsole("Num rows of data: " + _this.calcNumRows());
 
                     }
                 };
@@ -76,11 +81,6 @@ class PhoneCallApp {
 
         }
 
-    }
-
-    analyseData(){
-        this.calcDateRange();
-        this.updateAnalysisConsole("Num rows of data: " + this.calcNumRows());
     }
 
     calcDateRange(){
@@ -113,9 +113,11 @@ class PhoneCallApp {
         this.$datesContainer.removeClass('hidden');
         this.$datesContainer.append(`<div class="analyse-all link">Analayse all</div>`);
         for (let date in dates){
-            this.$datesContainer.append(`<div data-id="${Date.parse(date)}">${date} | <span class="analyse-date link">analyse</span></div>`);
+            this.$datesContainer.append(`<div>${date} | <span class="analyse-date link" data-id="${Date.parse(date)}">analyse</span></div>`);
         }
     }
+
+
     
     convertCSVtoJSON(csv, dataType, dateKey) {
 
@@ -184,6 +186,45 @@ class PhoneCallApp {
                 return true;
             }
         }
+    }
+
+    analyseSingleDate(timestamp){
+        console.log("analysedate: ", timestamp);
+        this.$analysisDisplay.removeClass('hidden');
+        let date = new Date(parseInt(timestamp));
+        let dateStr = this.formatDate(date);
+        $('.analysis-subtitle').text(dateStr);
+        this.updateAnalysisConsole("Isolating data for: " + dateStr);
+        let groupDataToAnalyse = [];
+        let agentDataToAnalyse = [];
+        if (this.groupData){
+            for (let row of this.groupData){
+                if (this.formatDate(row.timestamp) === dateStr) groupDataToAnalyse.push(row);
+            }
+        }
+        if (this.agentData){
+            for (let row of this.agentData) {
+                if (this.formatDate(row.timestamp) === dateStr) agentDataToAnalyse.push(row);
+            }
+        }
+        this.updateAnalysisConsole("Data isolated");
+
+        let dataAnalysisParams = {};
+        if (groupDataToAnalyse) dataAnalysisParams.groupData = this.filterGroupDataForWorkingHours(groupDataToAnalyse);
+        if (agentDataToAnalyse) dataAnalysisParams.agentData = agentDataToAnalyse;
+        new DataAnalysis(dataAnalysisParams, this, false);
+    }
+
+    filterGroupDataForWorkingHours(data){
+        this.updateAnalysisConsole("Filtering group data for working hours");
+        let filteredData = [];
+        for (let row of data){
+            if (row.timestamp.getHours() >= 8 && row.timestamp.getHours() < 18){
+                filteredData.push(row);
+            }
+        }
+        this.updateAnalysisConsole("Group data filtered");
+        return filteredData;
     }
 
     updateAnalysisConsole(text){

@@ -13,8 +13,9 @@
             width: 50%;
         }
 
-        #datesContainer {
-
+        #analysisDisplay {
+            float: left;
+            width: 100%;
         }
 
         .analyse-all {
@@ -41,10 +42,15 @@
             overflow: scroll;
         }
 
+        .line {
+            fill: none;
+            stroke: steelblue;
+            stroke-width: 2px;
+        }
+
     </style>
 </head>
 <body>
-    <h1>Phone Call Challenge</h1>
     <input id="fileInput" type="file" multiple/>
     <div id="analysisConsole" class="scroll-pane">
         <h3>Analysis Console</h3>
@@ -53,6 +59,21 @@
     <div>
         <div id="datesContainer" class="scroll-pane hidden">
 
+        </div>
+    </div>
+
+    <div id="analysisDisplay" class="hidden">
+        <h3>Data analysis: <span class="analysis-subtitle"></span></h3>
+        <div class="group-analysis-toolbar">
+            <select class="group-header-dropdown">
+            </select>
+            <button id="calculate-total-btn">total</button>
+            <button id="plot-graph-btn">plot graph</button>
+        </div>
+        <div class="agent-analysis-toolbar">
+
+        </div>
+        <div id="graph">
         </div>
     </div>
 
